@@ -21,7 +21,7 @@ various parameters of a Bloom Filter interact, and get the optimal parameters, u
 https://hur.st/bloomfilter/
 ```Go
 import (
-    "GoCeannaithe/pkg/bloom"
+    "github.com/dryack/GoCeannaithe/pkg/bloom"
     "fmt"
     "log"
 )
@@ -49,9 +49,9 @@ Using WithAutoConfigure will utilize the best Storage Type and parameters for th
 and your desired rate of false positives (error rate)
 ```Go
 import (
-"GoCeannaithe/pkg/bloom"
-"fmt"
-"log"
+    "github.com/dryack/GoCeannaithe/pkg/bloom"
+    "fmt"
+    "log"
 )
 size := 3000 // number of elements to be stored
 errorRate := 0.10 // desired maximum error rate (10% in this case) 
