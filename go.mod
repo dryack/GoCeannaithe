@@ -1,4 +1,4 @@
-module GoCeannaithe
+module github.com/dryack/GoCeannaithe
 
 go 1.22
 
