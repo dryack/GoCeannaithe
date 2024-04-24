@@ -16,9 +16,10 @@ type Storage[T common.Hashable] interface {
 
 // BitPackingStorage uses a slice of uint64 for efficient bit storage
 type BitPackingStorage[T common.Hashable] struct {
-	bits       []uint64
-	seeds      []uint32 // TODO: We may want to just make these uint64, and avoid casting them when hashing
-	bitsLength uint64
+	bits        []uint64
+	seeds       []uint32 // TODO: We may want to just make these uint64, and avoid casting them when hashing
+	bitsLength  uint64
+	bloomFilter *BloomFilter[T]
 }
 
 // ConventionalStorage uses a slice of bool
@@ -26,6 +27,7 @@ type ConventionalStorage[T common.Hashable] struct {
 	bits        []bool
 	seeds       []uint32 // TODO: We may want to just make these uint64, and avoid casting them when hashing
 	sliceLength uint64
+	bloomFilter *BloomFilter[T]
 }
 
 // NewBitPackingStorage creates a new BitPackingStorage with the given number of bits
@@ -47,7 +49,7 @@ func NewConventionalStorage[T common.Hashable](size uint64, seeds []uint32) *Con
 
 // calculateBitIndex calculates the bit index for a given key
 func (b *BitPackingStorage[T]) calculateBitIndex(key T, seed uint32) (uint64, error) {
-	index, err := common.HashKey[T](key, seed)
+	index, err := b.bloomFilter.hashFunction(key, seed)
 	if err != nil {
 		return 0, err
 	}
@@ -87,7 +89,7 @@ func (b *BitPackingStorage[T]) CheckBit(key T) bool {
 
 // calculateBitIndex calculates the bit index for a given key in ConventionalStorage
 func (c *ConventionalStorage[T]) calculateBitIndex(key T, seed uint32) (uint64, error) {
-	index, err := common.HashKey[T](key, seed)
+	index, err := c.bloomFilter.hashFunction(key, seed)
 	if err != nil {
 		return 0, err
 	}
@@ -132,6 +134,7 @@ type BloomFilter[T common.Hashable] struct {
 	Storage          Storage[T]
 	numHashFunctions int
 	seeds            []uint32
+	hashFunction     func(T, uint32) (uint64, error)
 }
 
 // NewBloomFilter creates a new BloomFilter, initially with no storage
@@ -145,8 +148,10 @@ func (bf *BloomFilter[T]) WithStorage(storage Storage[T]) (*BloomFilter[T], erro
 	switch s := storage.(type) {
 	case *BitPackingStorage[T]:
 		s.seeds = bf.seeds
+		s.bloomFilter = bf
 	case *ConventionalStorage[T]:
 		s.seeds = bf.seeds
+		s.bloomFilter = bf
 	default:
 		err := errors.New("unsupported storage type")
 		return nil, err
@@ -167,6 +172,8 @@ func (bf *BloomFilter[T]) WithStorage(storage Storage[T]) (*BloomFilter[T], erro
 //
 // It picks the most memory efficient Storage option (which will almost always be BitPackingStorage unless an
 // tiny number of elements are expected to be stored in the Bloom Filter
+//
+// Finally, it selects Murmur3 as the hash function to be used
 func (bf *BloomFilter[T]) WithAutoConfigure(elements uint64, requestedErrorRate float64) (*BloomFilter[T], error) {
 	m := int(math.Ceil(-float64(elements) * math.Log(requestedErrorRate) / (math.Ln2 * math.Ln2)))
 	k := int(math.Ceil((float64(m) / float64(elements)) * math.Ln2))
@@ -174,33 +181,46 @@ func (bf *BloomFilter[T]) WithAutoConfigure(elements uint64, requestedErrorRate 
 	// Initialize the seeds array for hash functions
 	seeds := make([]uint32, k)
 	for i := range seeds {
-		seeds[i] = uint32(i + 1) // Simple sequence of seeds, ensure non-zero and simple variability
+		seeds[i] = uint32(i + 1) // TODO: break this out to allow different methods of creating seed values
 	}
 
 	var storage Storage[T]
-	if m < 64 { // TODO: in theory we could check the size of bool with unsafe.Sizeof() just in case it's ever larger than a byte..
-		storage = NewConventionalStorage[T](uint64(m), seeds)
+	if m < 64 {
+		storage = &ConventionalStorage[T]{
+			bits:        make([]bool, uint64(m)),
+			seeds:       seeds,
+			sliceLength: uint64(m),
+			bloomFilter: bf,
+		}
 	} else {
-		storage = NewBitPackingStorage[T](uint64(m), seeds)
+		roundedSize := roundUpToNextPowerOfTwo(uint64(m))
+		numUint64s := (roundedSize + 63) / 64 // Calculate number of uint64s needed
+		storage = &BitPackingStorage[T]{
+			bits:        make([]uint64, numUint64s),
+			seeds:       seeds,
+			bitsLength:  numUint64s,
+			bloomFilter: bf,
+		}
 	}
 
 	// Set the storage and hash functions
 	bf.Storage = storage
 	bf.numHashFunctions = k
 	bf.seeds = seeds
+	bf.hashFunction = common.HashKeyMurmur3[T]
 
 	return bf, nil
 }
 
-// TODO: WithHashFunctions probably should probably return different functions, thereby allowing the user to select which hashing function they want to use, and how the seeds are defined
-
 // WithHashFunctions sets the number of hash functions to use and initializes the seeds
-func (bf *BloomFilter[T]) WithHashFunctions(h int) *BloomFilter[T] {
-	bf.numHashFunctions = h
-	bf.seeds = make([]uint32, h)
+func (bf *BloomFilter[T]) WithHashFunctions(num int, hashFunc func(T, uint32) (uint64, error)) *BloomFilter[T] {
+	bf.numHashFunctions = num
+	bf.seeds = make([]uint32, num)
 	for i := range bf.seeds {
 		bf.seeds[i] = uint32(i) // TODO: break this out to allow different methods of creating seed values
 	}
+
+	bf.hashFunction = hashFunc
 
 	switch storage := bf.Storage.(type) {
 	case *BitPackingStorage[T]:

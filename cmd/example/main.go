@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/dryack/GoCeannaithe/pkg/bloom"
+	"github.com/dryack/GoCeannaithe/pkg/common"
 	"log"
 	"math/rand/v2"
 )
@@ -10,7 +11,7 @@ import (
 func main() {
 	var size uint64 = 1000000 // size of `bits` in the bloom filter, not the elements
 	bf, _ := bloom.NewBloomFilter[string]().
-		WithHashFunctions(7).
+		WithHashFunctions(7, common.HashKeyMurmur3[string]).
 		WithStorage(bloom.NewBitPackingStorage[string](size, nil))
 
 	err := bf.Storage.SetBit("test")
@@ -22,7 +23,7 @@ func main() {
 	// fmt.Println(bf.Storage)
 	fmt.Println()
 
-	bf2, _ := bloom.NewBloomFilter[int]().WithHashFunctions(5).WithStorage(bloom.NewBitPackingStorage[int](size, nil))
+	bf2, _ := bloom.NewBloomFilter[int]().WithHashFunctions(5, common.HashKeySipHash[int]).WithStorage(bloom.NewBitPackingStorage[int](size, nil))
 	err = bf2.Storage.SetBit(255)
 	if err != nil {
 		log.Fatal(err)
@@ -31,7 +32,7 @@ func main() {
 	fmt.Println(bf2.Storage.CheckBit(3))   // False
 	fmt.Println()
 
-	bf3, _ := bloom.NewBloomFilter[uint64]().WithHashFunctions(5).WithStorage(bloom.NewBitPackingStorage[uint64](size, nil))
+	bf3, _ := bloom.NewBloomFilter[uint64]().WithHashFunctions(5, common.HashKeyXXhash[uint64]).WithStorage(bloom.NewBitPackingStorage[uint64](size, nil))
 	err = bf3.Storage.SetBit(2)
 	if err != nil {
 		log.Fatal(err)
