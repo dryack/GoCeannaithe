@@ -1,13 +1,14 @@
 package bloom
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/binary"
-	"encoding/json"
+	"encoding/gob"
 	"errors"
 	"github.com/dryack/GoCeannaithe/pkg/common"
 	"os"
-	"reflect"
-	"runtime"
+	"strconv"
 )
 
 type Persistence[T common.Hashable] interface {
@@ -26,16 +27,17 @@ func NewFilePersistence[T common.Hashable](filepath string) *FilePersistence[T] 
 type BloomFilterData[T common.Hashable] struct {
 	NumHashFunctions int
 	Seeds            []uint32
-	HashFunctionName string
+	HashFunctionEnum uint8
 	StorageData      []byte
 	StorageType      string
 }
 
 func (bf *BloomFilter[T]) MarshalBinary() ([]byte, error) {
+	gob.Register(&BloomFilterData[T]{})
 	data := &BloomFilterData[T]{
 		NumHashFunctions: bf.numHashFunctions,
 		Seeds:            bf.seeds,
-		HashFunctionName: runtime.FuncForPC(reflect.ValueOf(bf.hashFunction).Pointer()).Name(),
+		HashFunctionEnum: bf.hashEnum,
 	}
 
 	switch storage := bf.Storage.(type) {
@@ -59,13 +61,29 @@ func (bf *BloomFilter[T]) MarshalBinary() ([]byte, error) {
 		return nil, errors.New("unsupported storage type")
 	}
 
-	return json.Marshal(data)
+	var buf bytes.Buffer
+	gzipWriter := gzip.NewWriter(&buf)
+	encoder := gob.NewEncoder(gzipWriter)
+	if err := encoder.Encode(data); err != nil {
+		return nil, err
+	}
+	if err := gzipWriter.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 func (bf *BloomFilter[T]) UnmarshalBinary(data []byte) error {
-	var bfData BloomFilterData[T]
-	err := json.Unmarshal(data, &bfData)
+	buf := bytes.NewBuffer(data)
+	gzipReader, err := gzip.NewReader(buf)
 	if err != nil {
+		return err
+	}
+	defer gzipReader.Close()
+
+	var bfData BloomFilterData[T]
+	decoder := gob.NewDecoder(gzipReader)
+	if err := decoder.Decode(&bfData); err != nil {
 		return err
 	}
 
@@ -73,28 +91,19 @@ func (bf *BloomFilter[T]) UnmarshalBinary(data []byte) error {
 	bf.seeds = bfData.Seeds
 
 	// TODO: really need to explore how we can better handle this, preferably without reflection. Probably just store a the hash used in BloomFilter as an int or sommething.
-	switch bfData.HashFunctionName {
-	case "github.com/dryack/GoCeannaithe/pkg/common.HashKeyMurmur":
-	case "github.com/dryack/GoCeannaithe/pkg/common.HashKeyMurmur[...]":
+	switch bfData.HashFunctionEnum {
+	case common.Murmur3:
 		bf.hashFunction = common.HashKeyMurmur3[T]
-	case "github.com/dryack/GoCeannaithe/pkg/common.HashKeySha256":
-	case "github.com/dryack/GoCeannaithe/pkg/common.HashKeySha256[...]":
+	case common.Sha256:
 		bf.hashFunction = common.HashKeySha256[T]
-	case "github.com/dryack/GoCeannaithe/pkg/common.HashKeySha512":
-	case "github.com/dryack/GoCeannaithe/pkg/common.HashKeySha512[...]":
+	case common.Sha512:
 		bf.hashFunction = common.HashKeySha512[T]
-	case "github.com/dryack/GoCeannaithe/pkg/common.HashKeySipHash":
-	case "github.com/dryack/GoCeannaithe/pkg/common.HashKeySipHash[...]":
+	case common.SipHash:
 		bf.hashFunction = common.HashKeySipHash[T]
-	case "github.com/dryack/GoCeannaithe/pkg/common.HashKeyXXhash":
-	case "github.com/dryack/GoCeannaithe/pkg/common.HashKeyXXhash[...]":
-	case "github.com/dryack/GoCeannaithe/pkg/bloom.(*BloomFilter[...]).UnmarshalBinary.func5":
+	case common.XXhash:
 		bf.hashFunction = common.HashKeyXXhash[T]
-	case "github.com/dryack/GoCeannaithe/pkg/bloom.(*BloomFilter[...]).WithAutoConfigure.func1":
-	case "github.com/dryack/GoCeannaithe/pkg/bloom.(*BloomFilter[...]).UnmarshalBinary.func6":
-		bf.hashFunction = common.HashKeyMurmur3[T]
 	default:
-		return errors.New("unsupported hash function: " + bfData.HashFunctionName)
+		return errors.New("unsupported hash function: " + strconv.Itoa(int(bfData.HashFunctionEnum)))
 	}
 
 	switch bfData.StorageType {

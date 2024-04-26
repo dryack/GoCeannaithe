@@ -6,6 +6,7 @@ import (
 	"github.com/dryack/GoCeannaithe/pkg/common"
 	"math"
 	"math/bits"
+	"os"
 )
 
 // Storage defines the interface for bit storage operations
@@ -135,6 +136,7 @@ type BloomFilter[T common.Hashable] struct {
 	numHashFunctions int
 	seeds            []uint32
 	hashFunction     func(T, uint32) (uint64, error)
+	hashEnum         uint8
 	persistence      Persistence[T]
 }
 
@@ -214,14 +216,30 @@ func (bf *BloomFilter[T]) WithAutoConfigure(elements uint64, requestedErrorRate 
 }
 
 // WithHashFunctions sets the number of hash functions to use and initializes the seeds
-func (bf *BloomFilter[T]) WithHashFunctions(num int, hashFunc func(T, uint32) (uint64, error)) *BloomFilter[T] {
+func (bf *BloomFilter[T]) WithHashFunctions(num int, hashFunc uint8) *BloomFilter[T] {
 	bf.numHashFunctions = num
 	bf.seeds = make([]uint32, num)
 	for i := range bf.seeds {
 		bf.seeds[i] = uint32(i) // TODO: break this out to allow different methods of creating seed values
 	}
 
-	bf.hashFunction = hashFunc
+	switch hashFunc {
+	case 1:
+		bf.hashFunction = common.HashKeyMurmur3[T]
+	case 2:
+		bf.hashFunction = common.HashKeySha256[T]
+	case 3:
+		bf.hashFunction = common.HashKeySha512[T]
+	case 4:
+		bf.hashFunction = common.HashKeySipHash[T]
+	case 5:
+		bf.hashFunction = common.HashKeyXXhash[T]
+	default:
+		fmt.Println("invalid hash function")
+		os.Exit(1)
+
+	}
+	bf.hashEnum = hashFunc
 
 	switch storage := bf.Storage.(type) {
 	case *BitPackingStorage[T]:

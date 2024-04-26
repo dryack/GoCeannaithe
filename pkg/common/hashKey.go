@@ -9,6 +9,15 @@ import (
 	"github.com/zeebo/xxh3"
 )
 
+const (
+	UnknownHash = uint8(0)
+	Murmur3     = uint8(1)
+	Sha256      = uint8(2)
+	Sha512      = uint8(3)
+	SipHash     = uint8(4)
+	XXhash      = uint8(5)
+)
+
 // HashKeyMurmur3 uses NumToBytes to convert a numeric type to bytes and computes the hash value using Murmur3.
 func HashKeyMurmur3[T Hashable](key T, seed uint32) (uint64, error) {
 	keyBytes, err := NumToBytes[T](key) // Directly using NumToBytes
