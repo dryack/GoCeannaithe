@@ -26,11 +26,52 @@ Around `261.5 ns/op	- 80 B/op - 10 allocs/op` during `SetBit`.
 * `common.HashKeyXXhash`  Tiny bit slower than Murmur3, may have superior collision avoidance and distribution.
 Around `174.1 ns/op	- 80 B/op - 10 allocs/op` during `SetBit`.
 
+### Persistence
+GoCeannaithe supports persistence of its filters.  When constructing a new filter, this is accomplished using the `.WithPersistence()` method.
+Currently, the only form of persistence available is FilePersistence, chosen by calling `.WithPersistence()` and passing it `bloom.NewFilePersistence(filename_and_location)`.
+
+When wanting to save a filter to disk, one can perform `err = bf6.SavePersistence()`.
+
+Reloading a filter from disk requires building a 'new' bloom filter, and including the `WithPersistence()` method as part of the chain; complete with passing a `bloom.NewFilePersistence(filename_and_location)` parameter.
+Additional methods are not necessary.  Once the empty bloom filter is created, the saved filter can be reconstituted by calling `err := bf.LoadPersistence()` 
+
+*Note:  The order the chain of methods can be a bit fiddly currently.*
+
+An example:
+```go
+bf, _ := bloom.NewBloomFilter[int]().WithPersistence(bloom.NewFilePersistence[int]("bf_data.dat")).WithAutoConfigure(size, errorRate)
+// or manually configuring a bloom filter:
+// bf5, _ := bloom.NewBloomFilter[int]().WithHashFunctions(5, common.HashKeyXXhash[int]).
+//      WithPersistence(bloom.NewFilePersistence[int]("bf_data.dat")).
+//      WithStorage(bloom.NewBitPackingStorage[int](size, nil))
+
+for i := 0; i < 100; i++ {
+    bf.Storage.SetBit(i)
+}
+
+err := bf.SavePersistence()
+if err != nil {
+    fmt.Println("Error saving Bloom filter:", err)
+	return
+}
+
+bf2 := bloom.NewBloomFilter[int]().WithPersistence(bloom.NewFilePersistence[int]("bf_data.dat"))
+err := bf6.LoadPersistence()
+if err != nil {
+    fmt.Println("Error loading Bloom filter:", err)
+    return
+}
+
+fmt.Println(bf6.Storage.CheckBit(50)) // True
+fmt.Println(bf6.Storage.CheckBit(150)) // False
+
+```
+
 ### Manually configuring the bloom filter
 When manually setting up a Bloom Filter, GoCeannaithe expects you to choose the number of bits in the filter (size),
 and the number of hashes. While there's room for experimentation, in general there _is_ an optimal solution for a given
 number of items you wish to store, and the probability of a false-positive you desire.  You can have a look at how the 
-various parameters of a Bloom Filter interact, and get the optimal parameters, using the following calculator:
+various parameters of a Bloom Filter interact, and get the optimal parameters for your filter, using the following calculator:
 https://hur.st/bloomfilter/
 ```Go
 import (
