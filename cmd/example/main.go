@@ -3,13 +3,11 @@ package main
 import (
 	"fmt"
 	"github.com/dryack/GoCeannaithe/pkg/bloom"
-	"github.com/dryack/GoCeannaithe/pkg/common"
-	"log"
 	"math/rand/v2"
 )
 
 func main() {
-	var size uint64 = 1000000 // size of `bits` in the bloom filter, not the elements
+	/*var size uint64 = 1000000 // size of `bits` in the bloom filter, not the elements
 	bf, _ := bloom.NewBloomFilter[string]().
 		WithHashFunctions(7, common.HashKeyMurmur3[string]).
 		WithStorage(bloom.NewBitPackingStorage[string](size, nil))
@@ -59,5 +57,38 @@ func main() {
 		}
 	}
 	fmt.Println(bf4.Storage.CheckBit(3.14))    // True
-	fmt.Println(bf4.Storage.CheckBit(2.71828)) // False
+	fmt.Println(bf4.Storage.CheckBit(2.71828)) // False*/
+
+	/*size := uint64(10_000_000)
+	// errorRate := 0.015
+	// bf5, _ := bloom.NewBloomFilter[int]().WithPersistence(bloom.NewFilePersistence[int]("bf_data.dat")).WithAutoConfigure(size, errorRate)
+	bf5, _ := bloom.NewBloomFilter[int]().WithHashFunctions(5, common.HashKeyXXhash[int]).WithPersistence(bloom.NewFilePersistence[int]("bf_data.dat")).WithStorage(bloom.NewBitPackingStorage[int](size, nil))
+
+	for i := 0; i < 100; i++ {
+		bf5.Storage.SetBit(i)
+	}
+	err := bf5.SavePersistence()
+	if err != nil {
+		log.Fatal(err)
+	}*/
+
+	bf6 := bloom.NewBloomFilter[int]().WithPersistence(bloom.NewFilePersistence[int]("bf_data.dat"))
+	err := bf6.LoadPersistence()
+	if err != nil {
+		fmt.Println("Error loading Bloom filter:", err)
+		return
+	}
+	fmt.Println(bf6.Storage.CheckBit(50))
+	fmt.Println(bf6.Storage.CheckBit(150))
+	if !bf6.Storage.CheckBit(200) {
+		bf6.Storage.SetBit(200)
+	} else {
+		bf6.Storage.SetBit(rand.Int())
+	}
+	err = bf6.SavePersistence()
+	if err != nil {
+		fmt.Println("Error saving Bloom filter:", err)
+		return
+	}
+
 }

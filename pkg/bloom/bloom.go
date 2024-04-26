@@ -135,6 +135,7 @@ type BloomFilter[T common.Hashable] struct {
 	numHashFunctions int
 	seeds            []uint32
 	hashFunction     func(T, uint32) (uint64, error)
+	persistence      Persistence[T]
 }
 
 // NewBloomFilter creates a new BloomFilter, initially with no storage
@@ -229,6 +230,30 @@ func (bf *BloomFilter[T]) WithHashFunctions(num int, hashFunc func(T, uint32) (u
 		storage.seeds = bf.seeds
 	}
 	return bf
+}
+
+// WithPersistence sets the persistence mechanism for the BloomFilter
+func (bf *BloomFilter[T]) WithPersistence(persistence Persistence[T]) *BloomFilter[T] {
+	bf.persistence = persistence
+	return bf
+}
+
+// TODO: The concrete type chosen for a bloom filter probably needs to be stored explicitly within the BloomFilter struct and marshaled/unmarshalled or there's doubt about how much we can trust the result
+
+// SavePersistence saves the BloomFilter data using the selected persistence mechanism
+func (bf *BloomFilter[T]) SavePersistence() error {
+	if bf.persistence == nil {
+		return errors.New("persistence mechanism not set")
+	}
+	return bf.persistence.Save(bf)
+}
+
+// LoadPersistence loads the BloomFilter data using the selected persistence mechanism
+func (bf *BloomFilter[T]) LoadPersistence() error {
+	if bf.persistence == nil {
+		return errors.New("persistence mechanism not set")
+	}
+	return bf.persistence.Load(bf)
 }
 
 // roundUpToNextPowerOfTwo finds the next power of two value for a given number
