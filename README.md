@@ -15,15 +15,15 @@
 ## Bloom Filter Usage
 
 ### Hashing functions available
-* `common.HashKeyMurmur3` Great compromise between collision avoidance, performance, and distribution (fastest hash in 
+* `common.Murmur3` Great compromise between collision avoidance, performance, and distribution (fastest hash in 
 the package, and used by `WithAutoConfiguration`).  Around `168.2 ns/op - 80 B/op - 10 allocs/op` during `SetBit`.
-* `common.HashKeySha256`  Cryptographically secure with good collision avoidance and distribution, around 5x slower than Murmur3.
+* `common.KeySha256`  Cryptographically secure with good collision avoidance and distribution, around 5x slower than Murmur3.
 Around `876.3 ns/op	- 240 B/op - 20 allocs/op` during `SetBit`.
-* `common.HashKeySha512`  Cryptographically secure with good collision avoidance and distribution, around 12x slower than Murmur3.
+* `common.Sha512`  Cryptographically secure with good collision avoidance and distribution, around 12x slower than Murmur3.
 Around `2034 ns/op	- 240 B/op - 20 allocs/op` during `SetBit`.
-* `common.HashKeySipHash` Slower than Murmur3, hardened against "hash flooding"; somewhat slower than Murmur3.
+* `common.SipHash` Slower than Murmur3, hardened against "hash flooding"; somewhat slower than Murmur3.
 Around `261.5 ns/op	- 80 B/op - 10 allocs/op` during `SetBit`.
-* `common.HashKeyXXhash`  Tiny bit slower than Murmur3, may have superior collision avoidance and distribution.
+* `common.XXhash`  Tiny bit slower than Murmur3, may have superior collision avoidance and distribution.
 Around `174.1 ns/op	- 80 B/op - 10 allocs/op` during `SetBit`.
 
 ### Persistence
@@ -41,7 +41,7 @@ An example:
 ```go
 bf, _ := bloom.NewBloomFilter[int]().WithPersistence(bloom.NewFilePersistence[int]("bf_data.dat")).WithAutoConfigure(size, errorRate)
 // or manually configuring a bloom filter:
-// bf5, _ := bloom.NewBloomFilter[int]().WithHashFunctions(5, common.HashKeyXXhash[int]).
+// bf5, _ := bloom.NewBloomFilter[int]().WithHashFunctions(5, common.XXhash).
 //      WithPersistence(bloom.NewFilePersistence[int]("bf_data.dat")).
 //      WithStorage(bloom.NewBitPackingStorage[int](size, nil))
 
@@ -84,7 +84,7 @@ var size uint64 = 1000000 // size of `bits` in the bloom filter, not the element
 numHashes := 7 // number of different hashes to perform on each element
 	
 bf, log := bloom.NewBloomFilter[string]().
-    WithHashFunctions(numHashes, common.HashKeyMurmur3[string]).
+    WithHashFunctions(numHashes, common.Murmur3).
     WithStorage(bloom.NewBitPackingStorage[string](size, nil))
 if err != nil {
 log.Fatal(err)
