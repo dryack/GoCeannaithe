@@ -6,7 +6,6 @@ import (
 	"github.com/dryack/GoCeannaithe/pkg/common"
 	"math"
 	"math/bits"
-	"os"
 )
 
 // Storage defines the interface for bit storage operations
@@ -224,19 +223,18 @@ func (bf *BloomFilter[T]) WithHashFunctions(num int, hashFunc uint8) *BloomFilte
 	}
 
 	switch hashFunc {
-	case 1:
+	case common.Murmur3:
 		bf.hashFunction = common.HashKeyMurmur3[T]
-	case 2:
+	case common.Sha256:
 		bf.hashFunction = common.HashKeySha256[T]
-	case 3:
+	case common.Sha512:
 		bf.hashFunction = common.HashKeySha512[T]
-	case 4:
+	case common.SipHash:
 		bf.hashFunction = common.HashKeySipHash[T]
-	case 5:
+	case common.XXhash:
 		bf.hashFunction = common.HashKeyXXhash[T]
 	default:
-		fmt.Println("invalid hash function")
-		os.Exit(1)
+		panic("invalid hash function, this is probably a bug") // BUG
 
 	}
 	bf.hashEnum = hashFunc
