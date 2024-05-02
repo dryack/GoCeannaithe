@@ -17,11 +17,12 @@ type Persistence[T common.Hashable] interface {
 }
 
 type FilePersistence[T common.Hashable] struct {
-	filepath string
+	directory string
+	filename  string
 }
 
-func NewFilePersistence[T common.Hashable](filepath string) *FilePersistence[T] {
-	return &FilePersistence[T]{filepath: filepath}
+func NewFilePersistence[T common.Hashable](directory, filename string) *FilePersistence[T] {
+	return &FilePersistence[T]{directory: directory, filename: filename}
 }
 
 type BloomFilterData[T common.Hashable] struct {
@@ -141,13 +142,28 @@ func (fp *FilePersistence[T]) Save(bf *BloomFilter[T]) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(fp.filepath, data, 0644)
+
+	tempfile, err := os.CreateTemp(fp.directory, fp.filename+"*")
+	if err != nil {
+		return err
+	}
+
+	_, err = tempfile.Write(data)
+	if err != nil {
+		return err
+	}
+	tempfile.Close() // manually close the tempfile so it can be renamed
+	return os.Rename(tempfile.Name(), fp.getFullPath())
 }
 
 func (fp *FilePersistence[T]) Load(bf *BloomFilter[T]) error {
-	data, err := os.ReadFile(fp.filepath)
+	data, err := os.ReadFile(fp.filename)
 	if err != nil {
 		return err
 	}
 	return bf.UnmarshalBinary(data)
+}
+
+func (fp *FilePersistence[T]) getFullPath() string {
+	return fp.directory + string(os.PathSeparator) + fp.filename
 }

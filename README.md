@@ -4,12 +4,15 @@
 
 - [x] Bloom Filter
 - [ ] Counting Bloom Filter
-- [ ] Cuckoo Filter
+- [x] Cuckoo Filter
+- [x] Counting Cuckoo Filter
+- [ ] Semi-Sorted Cuckoo Filter
 - [ ] Golomb Compressed Set (midterm goal)
 - [ ] Parallel-partitioned Bloom Filter (long term goal)
 - [ ] Spatial Bloom Filter (long term goal)
 - [ ] Layered Bloom Filter
 - [ ] Count-min Sketch
+- [ ] Vacuum Filter
 
 
 ## Bloom Filter Usage
@@ -28,18 +31,18 @@ Around `174.1 ns/op	- 80 B/op - 10 allocs/op` during `SetBit`.
 
 ### Persistence
 GoCeannaithe supports persistence of its filters.  When constructing a new filter, this is accomplished using the `.WithPersistence()` method.
-Currently, the only form of persistence available is FilePersistence, chosen by calling `.WithPersistence()` and passing it `bloom.NewFilePersistence(filename_and_location)`.
+Currently, the only form of persistence available is FilePersistence, chosen by calling `.WithPersistence()` and passing it `bloom.NewFilePersistence(directory_without_trailing_slash, filename)`.
 
 When wanting to save a filter to disk, one can perform `err = bf6.SavePersistence()`.
 
-Reloading a filter from disk requires building a 'new' bloom filter, and including the `WithPersistence()` method as part of the chain; complete with passing a `bloom.NewFilePersistence(filename_and_location)` parameter.
+Reloading a filter from disk requires building a 'new' bloom filter, and including the `WithPersistence()` method as part of the chain; complete with passing a `bloom.NewFilePersistence(directory_without_trailing_slash, filename)` parameter.
 Additional methods are not necessary.  Once the empty bloom filter is created, the saved filter can be reconstituted by calling `err := bf.LoadPersistence()` 
 
 *Note:  The order the chain of methods can be a bit fiddly currently.*
 
 An example:
 ```go
-bf, _ := bloom.NewBloomFilter[int]().WithPersistence(bloom.NewFilePersistence[int]("bf_data.dat")).WithAutoConfigure(size, errorRate)
+bf, _ := bloom.NewBloomFilter[int]().WithPersistence(bloom.NewFilePersistence[int](".","bf_data.dat")).WithAutoConfigure(size, errorRate)
 // or manually configuring a bloom filter:
 // bf5, _ := bloom.NewBloomFilter[int]().WithHashFunctions(5, common.XXhash).
 //      WithPersistence(bloom.NewFilePersistence[int]("bf_data.dat")).
@@ -55,7 +58,7 @@ if err != nil {
 	return
 }
 
-bf2 := bloom.NewBloomFilter[int]().WithPersistence(bloom.NewFilePersistence[int]("bf_data.dat"))
+bf2 := bloom.NewBloomFilter[int]().WithPersistence(bloom.NewFilePersistence[int](".", "bf_data.dat"))
 err := bf6.LoadPersistence()
 if err != nil {
     fmt.Println("Error loading Bloom filter:", err)
