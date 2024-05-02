@@ -8,7 +8,6 @@ import (
 	"errors"
 	"github.com/dryack/GoCeannaithe/pkg/common"
 	"os"
-	"strconv"
 )
 
 type Persistence[T common.Hashable] interface {
@@ -104,7 +103,7 @@ func (bf *BloomFilter[T]) UnmarshalBinary(data []byte) error {
 	case common.XXhash:
 		bf.hashFunction = common.HashKeyXXhash[T]
 	default:
-		return errors.New("unsupported hash function: " + strconv.Itoa(int(bfData.HashFunctionEnum)))
+		panic("unsupported hash function, this is probably a bug")
 	}
 
 	switch bfData.StorageType {

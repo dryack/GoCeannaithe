@@ -38,6 +38,8 @@ When wanting to save a filter to disk, one can perform `err = bf6.SavePersistenc
 Reloading a filter from disk requires building a 'new' bloom filter, and including the `WithPersistence()` method as part of the chain; complete with passing a `bloom.NewFilePersistence(directory_without_trailing_slash, filename)` parameter.
 Additional methods are not necessary.  Once the empty bloom filter is created, the saved filter can be reconstituted by calling `err := bf.LoadPersistence()` 
 
+***Important***:  Do not attempt to load using a different hash algorithm than the saved filter used, this will result in a panic during loading.  
+
 *Note:  The order the chain of methods can be a bit fiddly currently.*
 
 An example:
