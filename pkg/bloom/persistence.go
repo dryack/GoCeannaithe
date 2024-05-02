@@ -6,8 +6,10 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	"errors"
+	"fmt"
 	"github.com/dryack/GoCeannaithe/pkg/common"
 	"os"
+	"reflect"
 )
 
 type Persistence[T common.Hashable] interface {
@@ -30,6 +32,7 @@ type BloomFilterData[T common.Hashable] struct {
 	HashFunctionEnum uint8
 	StorageData      []byte
 	StorageType      string
+	FilterType       string
 }
 
 func (bf *BloomFilter[T]) MarshalBinary() ([]byte, error) {
@@ -38,6 +41,7 @@ func (bf *BloomFilter[T]) MarshalBinary() ([]byte, error) {
 		NumHashFunctions: bf.numHashFunctions,
 		Seeds:            bf.seeds,
 		HashFunctionEnum: bf.hashEnum,
+		FilterType:       reflect.TypeOf(bf).String(),
 	}
 
 	switch storage := bf.Storage.(type) {
@@ -85,6 +89,10 @@ func (bf *BloomFilter[T]) UnmarshalBinary(data []byte) error {
 	decoder := gob.NewDecoder(gzipReader)
 	if err := decoder.Decode(&bfData); err != nil {
 		return err
+	}
+
+	if bfData.FilterType != reflect.TypeOf(bf).String() {
+		return fmt.Errorf("type mismatch: type during unmarshal (%s) doesn't match type during marshal (%s)", reflect.TypeOf(bf).String(), bfData.FilterType)
 	}
 
 	bf.numHashFunctions = bfData.NumHashFunctions
@@ -158,7 +166,7 @@ func (fp *FilePersistence[T]) Save(bf *BloomFilter[T]) error {
 func (fp *FilePersistence[T]) Load(bf *BloomFilter[T]) error {
 	data, err := os.ReadFile(fp.filename)
 	if err != nil {
-		return err
+		return errors.New("error loading bloom filter: " + err.Error())
 	}
 	return bf.UnmarshalBinary(data)
 }

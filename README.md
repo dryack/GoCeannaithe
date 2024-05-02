@@ -40,6 +40,9 @@ Additional methods are not necessary.  Once the empty bloom filter is created, t
 
 ***Important***:  Do not attempt to load using a different hash algorithm than the saved filter used, this will result in a panic during loading.  
 
+***Important***:  Do not attempt to load using a different BloomFilter[T] type than was persisted.  This will result in an error similar to `error loading Bloom filter: type mismatch: type during unmarshal (*bloom.BloomFilter[uint]) doesn't match type during marshal (*bloom.BloomFilter[int])
+`
+
 *Note:  The order the chain of methods can be a bit fiddly currently.*
 
 An example:
