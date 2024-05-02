@@ -92,13 +92,16 @@ func (bf *BloomFilter[T]) UnmarshalBinary(data []byte) error {
 	}
 
 	if bfData.FilterType != reflect.TypeOf(bf).String() {
-		return fmt.Errorf("type mismatch: type during unmarshal (%s) doesn't match type during marshal (%s)", reflect.TypeOf(bf).String(), bfData.FilterType)
+		return fmt.Errorf(
+			"type mismatch: type during unmarshal (%s) doesn't match type during marshal (%s)",
+			bfData.FilterType,
+			reflect.TypeOf(bf).String(),
+		)
 	}
 
 	bf.numHashFunctions = bfData.NumHashFunctions
 	bf.seeds = bfData.Seeds
 
-	// TODO: really need to explore how we can better handle this, preferably without reflection. Probably just store a the hash used in BloomFilter as an int or sommething.
 	switch bfData.HashFunctionEnum {
 	case common.Murmur3:
 		bf.hashFunction = common.HashKeyMurmur3[T]
