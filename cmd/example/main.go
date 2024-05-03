@@ -76,7 +76,7 @@ func main() {
 	bf6 := bloom.NewBloomFilter[int]().WithPersistence(bloom.NewFilePersistence[int](".", "bf_data.dat"))
 	err = bf6.LoadPersistence()
 	if err != nil {
-		fmt.Println("Error loading Bloom filter:", err)
+		fmt.Println("error loading Bloom filter:", err)
 		return
 	}
 	fmt.Println(bf6.Storage.CheckBit(50))
@@ -88,7 +88,7 @@ func main() {
 	}
 	err = bf6.SavePersistence()
 	if err != nil {
-		fmt.Println("Error saving Bloom filter:", err)
+		fmt.Println("error saving Bloom filter:", err)
 		return
 	}
 
