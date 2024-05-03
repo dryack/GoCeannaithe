@@ -6,9 +6,10 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	"errors"
+	"fmt"
 	"github.com/dryack/GoCeannaithe/pkg/common"
 	"os"
-	"strconv"
+	"reflect"
 )
 
 type Persistence[T common.Hashable] interface {
@@ -17,11 +18,12 @@ type Persistence[T common.Hashable] interface {
 }
 
 type FilePersistence[T common.Hashable] struct {
-	filepath string
+	directory string
+	filename  string
 }
 
-func NewFilePersistence[T common.Hashable](filepath string) *FilePersistence[T] {
-	return &FilePersistence[T]{filepath: filepath}
+func NewFilePersistence[T common.Hashable](directory, filename string) *FilePersistence[T] {
+	return &FilePersistence[T]{directory: directory, filename: filename}
 }
 
 type BloomFilterData[T common.Hashable] struct {
@@ -30,6 +32,7 @@ type BloomFilterData[T common.Hashable] struct {
 	HashFunctionEnum uint8
 	StorageData      []byte
 	StorageType      string
+	FilterType       string
 }
 
 func (bf *BloomFilter[T]) MarshalBinary() ([]byte, error) {
@@ -38,6 +41,7 @@ func (bf *BloomFilter[T]) MarshalBinary() ([]byte, error) {
 		NumHashFunctions: bf.numHashFunctions,
 		Seeds:            bf.seeds,
 		HashFunctionEnum: bf.hashEnum,
+		FilterType:       reflect.TypeOf(bf).String(),
 	}
 
 	switch storage := bf.Storage.(type) {
@@ -87,10 +91,17 @@ func (bf *BloomFilter[T]) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
+	if bfData.FilterType != reflect.TypeOf(bf).String() {
+		return fmt.Errorf(
+			"type mismatch: type during unmarshal (%s) doesn't match type during marshal (%s)",
+			bfData.FilterType,
+			reflect.TypeOf(bf).String(),
+		)
+	}
+
 	bf.numHashFunctions = bfData.NumHashFunctions
 	bf.seeds = bfData.Seeds
 
-	// TODO: really need to explore how we can better handle this, preferably without reflection. Probably just store a the hash used in BloomFilter as an int or sommething.
 	switch bfData.HashFunctionEnum {
 	case common.Murmur3:
 		bf.hashFunction = common.HashKeyMurmur3[T]
@@ -103,7 +114,7 @@ func (bf *BloomFilter[T]) UnmarshalBinary(data []byte) error {
 	case common.XXhash:
 		bf.hashFunction = common.HashKeyXXhash[T]
 	default:
-		return errors.New("unsupported hash function: " + strconv.Itoa(int(bfData.HashFunctionEnum)))
+		panic("unsupported hash function, this is probably a bug")
 	}
 
 	switch bfData.StorageType {
@@ -141,13 +152,28 @@ func (fp *FilePersistence[T]) Save(bf *BloomFilter[T]) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(fp.filepath, data, 0644)
-}
 
-func (fp *FilePersistence[T]) Load(bf *BloomFilter[T]) error {
-	data, err := os.ReadFile(fp.filepath)
+	tempfile, err := os.CreateTemp(fp.directory, fp.filename+"*")
 	if err != nil {
 		return err
 	}
+
+	_, err = tempfile.Write(data)
+	if err != nil {
+		return err
+	}
+	tempfile.Close() // manually close the tempfile so it can be renamed
+	return os.Rename(tempfile.Name(), fp.getFullPath())
+}
+
+func (fp *FilePersistence[T]) Load(bf *BloomFilter[T]) error {
+	data, err := os.ReadFile(fp.filename)
+	if err != nil {
+		return errors.New("error loading bloom filter: " + err.Error())
+	}
 	return bf.UnmarshalBinary(data)
+}
+
+func (fp *FilePersistence[T]) getFullPath() string {
+	return fp.directory + string(os.PathSeparator) + fp.filename
 }

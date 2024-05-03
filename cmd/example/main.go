@@ -64,7 +64,7 @@ func main() {
 	size := uint64(10_000_000)
 	// errorRate := 0.015
 	// bf5, _ := bloom.NewBloomFilter[int]().WithPersistence(bloom.NewFilePersistence[int]("bf_data.dat")).WithAutoConfigure(size, errorRate)
-	bf5, _ := bloom.NewBloomFilter[int]().WithHashFunctions(5, common.XXhash).WithPersistence(bloom.NewFilePersistence[int]("bf_data.dat")).WithStorage(bloom.NewBitPackingStorage[int](size, nil))
+	bf5, _ := bloom.NewBloomFilter[int]().WithHashFunctions(5, common.XXhash).WithPersistence(bloom.NewFilePersistence[int](".", "bf_data.dat")).WithStorage(bloom.NewBitPackingStorage[int](size, nil))
 	for i := 0; i < 100; i++ {
 		bf5.Storage.SetBit(i)
 	}
@@ -73,10 +73,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	bf6 := bloom.NewBloomFilter[int]().WithPersistence(bloom.NewFilePersistence[int]("bf_data.dat"))
+	bf6 := bloom.NewBloomFilter[int]().WithPersistence(bloom.NewFilePersistence[int](".", "bf_data.dat"))
 	err = bf6.LoadPersistence()
 	if err != nil {
-		fmt.Println("Error loading Bloom filter:", err)
+		fmt.Println("error loading Bloom filter:", err)
 		return
 	}
 	fmt.Println(bf6.Storage.CheckBit(50))
@@ -88,8 +88,31 @@ func main() {
 	}
 	err = bf6.SavePersistence()
 	if err != nil {
-		fmt.Println("Error saving Bloom filter:", err)
+		fmt.Println("error saving Bloom filter:", err)
 		return
 	}
+
+	fmt.Println("cuckoo:")
+	// cf := cuckoo.NewCuckooFilter[int](2048).WithHashFunction(common.Murmur3)
+	/*fmt.Println("insert:", cf.Insert(5))
+	fmt.Println("lookup:", cf.Lookup(5))
+	fmt.Println("insert:", cf.Insert(5))
+	fmt.Println("insert:", cf.Insert(5))
+	fmt.Println("insert:", cf.Insert(5))
+	fmt.Println("insert:", cf.Insert(5))
+	fmt.Println("insert:", cf.Insert(5))
+	fmt.Println("insert:", cf.Insert(5))
+	fmt.Println("insert:", cf.Insert(5))
+	fmt.Println("insert:", cf.Insert(5))*/
+	/*fmt.Println("lookup (expect false):", cf.Lookup(6))
+	fmt.Println("delete (expect false):", cf.Delete(6))
+	fmt.Println("delete (expect true)", cf.Delete(5))*/
+	/*cf := cuckoo.NewCuckooFilter[string](2048).WithHashFunction(common.Murmur3)
+	cf.Insert("a duck")
+	cf.Insert("a duct")
+	cf.Insert("a duck")
+	cf.Insert("a duck")
+	cf.Insert("a duck")
+	cf.Insert("a duck")*/
 
 }
