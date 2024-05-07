@@ -7,32 +7,6 @@ import (
 	"encoding/binary"
 )
 
-// NumToBytes takes a numeric value and returns a slice of bytes representing that value in BigEndian format
-/*func NumToBytes[T Hashable](num T) ([]byte, error) {
-	buff := new(bytes.Buffer)
-	switch k := any(num).(type) {
-	case int:
-		if err := binary.Write(buff, binary.BigEndian, int32(k)); err != nil {
-			return nil, err
-		}
-	case uint:
-		if err := binary.Write(buff, binary.BigEndian, uint32(k)); err != nil {
-			return nil, err
-		}
-	case string:
-		return []byte(k), nil
-	case byte:
-		return []byte{k}, nil
-	case []byte:
-		return k, nil
-	default:
-		if err := binary.Write(buff, binary.BigEndian, num); err != nil {
-			return nil, err
-		}
-	}
-	return buff.Bytes(), nil
-}*/
-
 func NumToBytes(num T) ([]byte, error) {
 	switch k := num.(type) {
 	case int:
