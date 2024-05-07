@@ -1,9 +1,9 @@
 package cuckoo
 
 import (
-	"encoding/binary"
 	"fmt"
 	"github.com/dryack/GoCeannaithe/pkg/common"
+	"math/rand"
 )
 
 const (
@@ -72,59 +72,37 @@ func (cf *CuckooFilter[T]) WithHashFunction(hashFunc uint8) *CuckooFilter[T] {
 }
 
 // Insert inserts a key into the Cuckoo Filter
-/*func (cf *CuckooFilter[T]) Insert(key T) bool {
+func (cf *CuckooFilter[T]) Insert(key T) bool {
 	i1, i2, fp := cf.getIndicesAndFingerprint(key, 0)
 
-	if cf.insert(key, i1) || cf.insert(key, i2) {
-		fmt.Println(key) // DEBUG
+	if cf.insert(key, i1, fp) || cf.insert(key, i2, fp) {
 		return true
 	}
 
 	i := i1
 	for k := 0; k < maxKicks; k++ {
-		f := cf.buckets[i].swapFingerprint(fp)
+		f := cf.buckets[i].swapFingerprint(fp, key)
 		fp = f
 
 		i = cf.getAlternateIndex(fp, i, 0)
-		if cf.insert(key, i) {
+		if cf.insert(key, i, fp) {
 			return true
 		}
 	}
-
-	return false
-}*/
-
-func (cf *CuckooFilter[T]) Insert(key T) bool {
-	i1, i2, fp := cf.getIndicesAndFingerprint(key, 0)
-	fpKey := any(fp).(T)
-
-	if cf.insert(fpKey, i1) || cf.insert(fpKey, i2) {
-		return true
-	}
-
-	i := i1
-	for k := 0; k < maxKicks; k++ {
-		oldKey := cf.buckets[i].swapFingerprint(fpKey)
-		i = cf.getAlternateIndex(uint32(any(oldKey).(uint32)), i, 0)
-		if cf.insert(oldKey, i) {
-			return true
-		}
-		fpKey = oldKey
-	}
-
+	// fmt.Println("no empty slot found") // DEBUG
 	return false
 }
 
 // Lookup checks if a key exists in the Cuckoo Filter
 func (cf *CuckooFilter[T]) Lookup(key T) bool {
-	i1, i2, _ := cf.getIndicesAndFingerprint(key, 0)
-	return cf.buckets[i1].contains(key) || cf.buckets[i2].contains(key)
+	i1, i2, fp := cf.getIndicesAndFingerprint(key, 0)
+	return cf.buckets[i1].contains(key, fp) || cf.buckets[i2].contains(key, fp)
 }
 
 // Delete removes a key from the Cuckoo Filter
 func (cf *CuckooFilter[T]) Delete(key T) bool {
-	i1, i2, _ := cf.getIndicesAndFingerprint(key, 0)
-	if cf.buckets[i1].delete(key) || cf.buckets[i2].delete(key) {
+	i1, i2, fp := cf.getIndicesAndFingerprint(key, 0)
+	if cf.buckets[i1].delete(key, fp) || cf.buckets[i2].delete(key, fp) {
 		cf.count--
 		return true
 	}
@@ -133,92 +111,54 @@ func (cf *CuckooFilter[T]) Delete(key T) bool {
 
 // getIndicesAndFingerprint returns the two bucket indices and fingerprint for a key
 func (cf *CuckooFilter[T]) getIndicesAndFingerprint(key T, seed uint32) (uint32, uint32, uint32) {
-	keyBytes, _ := common.NumToBytes[T](key)
-	// hash, _ := cf.hashFunction(key, seed)
-	hash, _ := common.HashKeyMurmur3(keyBytes, seed)
-	hashByes, _ := common.NumToBytes(hash)
-	fp := cf.fingerprint(hashByes)
-	i1 := hash % uint64(cf.numBuckets)
-	fmt.Println("fp:", fp) // DEBUG
-	fmt.Println("i1:", i1) // DEBUG
-	i2 := cf.getAlternateIndex(fp, uint32(i1), seed)
-	fmt.Println("i2:", i2) // DEBUG
-	return uint32(i1), i2, fp
+	hash, _ := cf.hashFunction(key, seed)
+	fp := cf.fingerprint(hash)
+	i1 := uint32(hash % uint64(cf.numBuckets))
+	i2 := cf.getAlternateIndex(fp, i1, seed)
+	return i1, i2, fp
 }
 
 // getAlternateIndex returns the alternate bucket index for a fingerprint and index
 func (cf *CuckooFilter[T]) getAlternateIndex(fp uint32, i uint32, seed uint32) uint32 {
-	// hash, _ := cf.hashFunction(uint64(fp), seed)
-	// hash, _ := common.HashKeyMurmur3[uint32](fp, seed)
-	hash := uint64(fp)
+	hash, _ := cf.hashFunction(fp, seed)
 	return i ^ uint32(hash)%cf.numBuckets
 }
 
-// insert inserts a key into a specific bucket
-func (cf *CuckooFilter[T]) insert(key T, i uint32) bool {
-	if cf.buckets[i].insert(key) {
+// insert inserts a key into a specific bucket using the fingerprint
+func (cf *CuckooFilter[T]) insert(key T, i uint32, fp uint32) bool {
+	if cf.buckets[i].insert(key, fp) {
+		fmt.Println(cf.buckets[i].keys) // DEBUG
 		cf.count++
+		fmt.Println(cf.count) // DEBUG
 		return true
 	}
 	return false
 }
 
 // swapFingerprint swaps a fingerprint in a bucket and returns the swapped fingerprint
-/*func (b *Bucket[T]) swapFingerprint(fp uint32) uint32 {
-	// fmt.Println("swapFingerprint()")
-	for i := range b.keys {
-		/*if !b.occupied[i] {
-			b.occupied[i] = true
-			b.keys[i], _ = any(fp).(T)
-			return fp
-		}//*\/
-		if b.occupied&(1<<i) == 0 {
-			b.occupied |= 1 << i
-			b.keys[i], _ = any(fp).(T)
-			fmt.Println("occupied")
-			fmt.Println(b.keys[i]) // DEBUG
-
-			return fp
-		}
-		return fp
-	}
-	return fp
-}*/
-
-func (b *Bucket[T]) swapFingerprint(fp T) T {
-	for i := range b.keys {
-		if b.occupied&(1<<i) != 0 {
-			oldKey := b.keys[i]
-			b.keys[i] = fp
-			return oldKey
-		}
-	}
-	return fp
+func (b *Bucket[T]) swapFingerprint(fp uint32, key T) uint32 {
+	i := rand.Intn(len(b.keys))
+	oldKey := b.keys[i]
+	oldFp := b.fingerprint(oldKey)
+	b.keys[i] = key
+	return oldFp
 }
 
-// contains checks if a bucket contains a key
-func (b *Bucket[T]) contains(key T) bool {
+// contains checks if a bucket contains a key using the fingerprint
+func (b *Bucket[T]) contains(key T, fp uint32) bool {
 	for i := range b.keys {
-		/*if b.occupied[i] && common.EqualKeys(b.keys[i], key) {
-			return true
-		}*/
-		if b.occupied&(1<<i) == 1 && common.EqualKeys(b.keys[i], key) {
+		if b.occupied&(1<<i) == 1 && b.fingerprint(b.keys[i]) == fp && common.EqualKeys(b.keys[i], key) {
 			return true
 		}
 	}
 	return false
 }
 
-// delete removes a key from a bucket
-func (b *Bucket[T]) delete(key T) bool {
+// delete removes a key from a bucket using the fingerprint
+func (b *Bucket[T]) delete(key T, fp uint32) bool {
 	for i := range b.keys {
-		/*if b.occupied[i] && common.EqualKeys(b.keys[i], key) {
-			b.occupied[i] = false
-			b.keys[i] = b.empty
-			return true
-		}*/
-		if b.occupied&(1<<i) == 1 && common.EqualKeys(b.keys[i], key) {
-			b.occupied &^= 1 << i // unset the bit in the location int(i) of the byte b.occupied
+		if b.occupied&(1<<i) == 1 && b.fingerprint(b.keys[i]) == fp && common.EqualKeys(b.keys[i], key) {
+			b.occupied &^= 1 << i
 			b.keys[i] = b.empty
 			return true
 		}
@@ -226,14 +166,9 @@ func (b *Bucket[T]) delete(key T) bool {
 	return false
 }
 
-// insert inserts a key into a bucket
-func (b *Bucket[T]) insert(key T) bool {
+// insert inserts a key into a bucket using the fingerprint
+func (b *Bucket[T]) insert(key T, fp uint32) bool {
 	for i := range b.keys {
-		/*if !b.occupied[i] {
-			b.occupied[i] = true
-			b.keys[i] = key
-			return true
-		}*/
 		if b.occupied&(1<<i) == 0 {
 			b.occupied |= 1 << i
 			b.keys[i] = key
@@ -244,10 +179,13 @@ func (b *Bucket[T]) insert(key T) bool {
 }
 
 // fingerprint returns the fingerprint of a hash
-func (cf *CuckooFilter[T]) fingerprint(hash []byte) uint32 {
-	// fp := uint32(hash & 0xFFFF)
-	fp := binary.BigEndian.Uint32(hash[:4]) & 0xFFFF
-	fmt.Println(fp)
-	fmt.Println(hash) // DEBUG
-	return fp
+func (cf *CuckooFilter[T]) fingerprint(hash uint64) uint32 {
+	return uint32(hash & 0xFFFF)
+}
+
+// fingerprint returns the fingerprint of a key
+func (b *Bucket[T]) fingerprint(key T) uint32 {
+	// TODO: probably want to ensure we're using the same hash as the cuckoo filter's hashFunc
+	hash, _ := common.HashKeyMurmur3(key, 0)
+	return uint32(hash & 0xFFFF)
 }

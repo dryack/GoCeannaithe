@@ -91,32 +91,4 @@ func main() {
 		fmt.Println("error saving Bloom filter:", err)
 		return
 	}
-
-	fmt.Println("cuckoo:")
-	// cf := cuckoo.NewCuckooFilter[int](2048).WithHashFunction(common.Murmur3)
-	/*fmt.Println("insert:", cf.Insert(5))
-	fmt.Println("lookup:", cf.Lookup(5))
-	fmt.Println("insert:", cf.Insert(5))
-	fmt.Println("insert:", cf.Insert(5))
-	fmt.Println("insert:", cf.Insert(5))
-	fmt.Println("insert:", cf.Insert(5))
-	fmt.Println("insert:", cf.Insert(5))
-	fmt.Println("insert:", cf.Insert(5))
-	fmt.Println("insert:", cf.Insert(5))
-	fmt.Println("insert:", cf.Insert(5))*/
-	/*fmt.Println("lookup (expect false):", cf.Lookup(6))
-	fmt.Println("delete (expect false):", cf.Delete(6))
-	fmt.Println("delete (expect true)", cf.Delete(5))*/
-	/*cf := cuckoo.NewCuckooFilter[string](2048).WithHashFunction(common.Murmur3)
-	cf.Insert("a duck")
-	cf.Insert("a duct")
-	cf.Insert("a duck")
-	cf.Insert("a duck")
-	cf.Insert("a duck")
-	cf.Insert("a duck")*/
-
-	/*cucko1 := cuckoo.NewCuckooFilter[int](1024).WithHashFunction(common.Murmur3)
-	for i := 0; i < 9; i++ {
-		fmt.Println(cucko1.Insert(5))
-	}*/
 }
