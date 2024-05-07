@@ -134,7 +134,7 @@ type BloomFilter[T common.Hashable] struct {
 	Storage          Storage[T]
 	numHashFunctions int
 	seeds            []uint32
-	hashFunction     func(T, uint32) (uint64, error)
+	hashFunction     func(any, uint32) (uint64, error)
 	hashEnum         uint8
 	persistence      Persistence[T]
 }
@@ -209,7 +209,7 @@ func (bf *BloomFilter[T]) WithAutoConfigure(elements uint64, requestedErrorRate 
 	bf.Storage = storage
 	bf.numHashFunctions = k
 	bf.seeds = seeds
-	bf.hashFunction = common.HashKeyMurmur3[T]
+	bf.hashFunction = common.HashKeyMurmur3
 
 	return bf, nil
 }
@@ -224,15 +224,15 @@ func (bf *BloomFilter[T]) WithHashFunctions(num int, hashFunc uint8) *BloomFilte
 
 	switch hashFunc {
 	case common.Murmur3:
-		bf.hashFunction = common.HashKeyMurmur3[T]
+		bf.hashFunction = common.HashKeyMurmur3
 	case common.Sha256:
-		bf.hashFunction = common.HashKeySha256[T]
+		bf.hashFunction = common.HashKeySha256
 	case common.Sha512:
-		bf.hashFunction = common.HashKeySha512[T]
+		bf.hashFunction = common.HashKeySha512
 	case common.SipHash:
-		bf.hashFunction = common.HashKeySipHash[T]
+		bf.hashFunction = common.HashKeySipHash
 	case common.XXhash:
-		bf.hashFunction = common.HashKeyXXhash[T]
+		bf.hashFunction = common.HashKeyXXhash
 	default:
 		panic("invalid hash function, this is probably a bug") // BUG
 

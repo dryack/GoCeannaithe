@@ -45,11 +45,11 @@ func TestNumToBytes(t *testing.T) {
 func callNumToBytesReflect(input interface{}) ([]byte, error) {
 	switch v := input.(type) {
 	case int:
-		return NumToBytes[int](v)
+		return NumToBytes(v)
 	case int32:
-		return NumToBytes[int32](v)
+		return NumToBytes(v)
 	case float64:
-		return NumToBytes[float64](v)
+		return NumToBytes(v)
 	// TODO:  add more test cases
 	default:
 		return nil, fmt.Errorf("unsupported type %T", v)

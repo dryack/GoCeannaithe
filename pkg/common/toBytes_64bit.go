@@ -9,8 +9,8 @@ import (
 	"math"
 )
 
-func NumToBytes[T Hashable](num T) ([]byte, error) {
-	switch k := any(num).(type) {
+func NumToBytes(num any) ([]byte, error) {
+	switch k := num.(type) {
 	case int:
 		buf := make([]byte, 8)
 		binary.BigEndian.PutUint64(buf, uint64(k))

@@ -19,8 +19,8 @@ const (
 )
 
 // HashKeyMurmur3 uses NumToBytes to convert a numeric type to bytes and computes the hash value using Murmur3.
-func HashKeyMurmur3[T Hashable](key T, seed uint32) (uint64, error) {
-	keyBytes, err := NumToBytes[T](key) // Directly using NumToBytes
+func HashKeyMurmur3(key any, seed uint32) (uint64, error) {
+	keyBytes, err := NumToBytes(key) // Directly using NumToBytes
 	if err != nil {
 		return 0, err // Properly handle errors from NumToBytes
 	}
@@ -30,8 +30,8 @@ func HashKeyMurmur3[T Hashable](key T, seed uint32) (uint64, error) {
 }
 
 // HashKeySha256 uses NumToBytes to convert a numeric type to bytes and computes the hash value using SHA-256
-func HashKeySha256[T Hashable](key T, seed uint32) (uint64, error) {
-	keyBytes, err := NumToBytes[T](key)
+func HashKeySha256(key any, seed uint32) (uint64, error) {
+	keyBytes, err := NumToBytes(key)
 	if err != nil {
 		return 0, err
 	}
@@ -51,8 +51,8 @@ func HashKeySha256[T Hashable](key T, seed uint32) (uint64, error) {
 }
 
 // HashKeySha512 uses NumToBytes to convert a numeric type to bytes and computes the hash value using SHA-512
-func HashKeySha512[T Hashable](key T, seed uint32) (uint64, error) {
-	keyBytes, err := NumToBytes[T](key)
+func HashKeySha512(key any, seed uint32) (uint64, error) {
+	keyBytes, err := NumToBytes(key)
 	if err != nil {
 		return 0, err
 	}
@@ -71,8 +71,8 @@ func HashKeySha512[T Hashable](key T, seed uint32) (uint64, error) {
 }
 
 // HashKeySipHash uses NumToBytes to convert a numeric type to bytes and computes the hash value using SipHash
-func HashKeySipHash[T Hashable](key T, seed uint32) (uint64, error) {
-	keyBytes, err := NumToBytes[T](key)
+func HashKeySipHash(key any, seed uint32) (uint64, error) {
+	keyBytes, err := NumToBytes(key)
 	if err != nil {
 		return 0, err
 	}
@@ -83,8 +83,8 @@ func HashKeySipHash[T Hashable](key T, seed uint32) (uint64, error) {
 }
 
 // HashKeyXXhash uses NumToBytes to convert a numeric type to bytes and computes the hash value using XX Hash
-func HashKeyXXhash[T Hashable](key T, seed uint32) (uint64, error) {
-	keyBytes, err := NumToBytes[T](key)
+func HashKeyXXhash(key any, seed uint32) (uint64, error) {
+	keyBytes, err := NumToBytes(key)
 	if err != nil {
 		return 0, err
 	}

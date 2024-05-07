@@ -9,9 +9,9 @@ import (
 )
 
 func main() {
-	/*var size uint64 = 1000000 // size of `bits` in the bloom filter, not the elements
+	var size uint64 = 1000000 // size of `bits` in the bloom filter, not the elements
 	bf, _ := bloom.NewBloomFilter[string]().
-		WithHashFunctions(7, common.HashKeyMurmur3[string]).
+		WithHashFunctions(7, common.Murmur3).
 		WithStorage(bloom.NewBitPackingStorage[string](size, nil))
 
 	err := bf.Storage.SetBit("test")
@@ -23,7 +23,7 @@ func main() {
 	// fmt.Println(bf.Storage)
 	fmt.Println()
 
-	bf2, _ := bloom.NewBloomFilter[int]().WithHashFunctions(5, common.HashKeySipHash[int]).WithStorage(bloom.NewBitPackingStorage[int](size, nil))
+	bf2, _ := bloom.NewBloomFilter[int]().WithHashFunctions(5, common.SipHash).WithStorage(bloom.NewBitPackingStorage[int](size, nil))
 	err = bf2.Storage.SetBit(255)
 	if err != nil {
 		log.Fatal(err)
@@ -32,7 +32,7 @@ func main() {
 	fmt.Println(bf2.Storage.CheckBit(3))   // False
 	fmt.Println()
 
-	bf3, _ := bloom.NewBloomFilter[uint64]().WithHashFunctions(5, common.HashKeyXXhash[uint64]).WithStorage(bloom.NewBitPackingStorage[uint64](size, nil))
+	bf3, _ := bloom.NewBloomFilter[uint64]().WithHashFunctions(5, common.XXhash).WithStorage(bloom.NewBitPackingStorage[uint64](size, nil))
 	err = bf3.Storage.SetBit(2)
 	if err != nil {
 		log.Fatal(err)
@@ -59,16 +59,16 @@ func main() {
 		}
 	}
 	fmt.Println(bf4.Storage.CheckBit(3.14))    // True
-	fmt.Println(bf4.Storage.CheckBit(2.71828)) // False*/
+	fmt.Println(bf4.Storage.CheckBit(2.71828)) // False
 
-	size := uint64(10_000_000)
+	size = uint64(10_000_000)
 	// errorRate := 0.015
 	// bf5, _ := bloom.NewBloomFilter[int]().WithPersistence(bloom.NewFilePersistence[int]("bf_data.dat")).WithAutoConfigure(size, errorRate)
 	bf5, _ := bloom.NewBloomFilter[int]().WithHashFunctions(5, common.XXhash).WithPersistence(bloom.NewFilePersistence[int](".", "bf_data.dat")).WithStorage(bloom.NewBitPackingStorage[int](size, nil))
 	for i := 0; i < 100; i++ {
 		bf5.Storage.SetBit(i)
 	}
-	err := bf5.SavePersistence()
+	err = bf5.SavePersistence()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -115,4 +115,8 @@ func main() {
 	cf.Insert("a duck")
 	cf.Insert("a duck")*/
 
+	/*cucko1 := cuckoo.NewCuckooFilter[int](1024).WithHashFunction(common.Murmur3)
+	for i := 0; i < 9; i++ {
+		fmt.Println(cucko1.Insert(5))
+	}*/
 }
