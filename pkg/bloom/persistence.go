@@ -104,15 +104,15 @@ func (bf *BloomFilter[T]) UnmarshalBinary(data []byte) error {
 
 	switch bfData.HashFunctionEnum {
 	case common.Murmur3:
-		bf.hashFunction = common.HashKeyMurmur3[T]
+		bf.hashFunction = common.HashKeyMurmur3
 	case common.Sha256:
-		bf.hashFunction = common.HashKeySha256[T]
+		bf.hashFunction = common.HashKeySha256
 	case common.Sha512:
-		bf.hashFunction = common.HashKeySha512[T]
+		bf.hashFunction = common.HashKeySha512
 	case common.SipHash:
-		bf.hashFunction = common.HashKeySipHash[T]
+		bf.hashFunction = common.HashKeySipHash
 	case common.XXhash:
-		bf.hashFunction = common.HashKeyXXhash[T]
+		bf.hashFunction = common.HashKeyXXhash
 	default:
 		panic("unsupported hash function, this is probably a bug")
 	}
