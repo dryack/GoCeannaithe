@@ -32,7 +32,7 @@ type CuckooFilter[T common.Hashable] struct {
 	buckets      []*Bucket[T]
 	numBuckets   uint32
 	count        uint32
-	hashFunction func(T, uint32) (uint64, error)
+	hashFunction func(any, uint32) (uint64, error)
 	hashEnum     uint8
 }
 
@@ -55,17 +55,17 @@ func NewCuckooFilter[T common.Hashable](numBuckets uint32) *CuckooFilter[T] {
 func (cf *CuckooFilter[T]) WithHashFunction(hashFunc uint8) *CuckooFilter[T] {
 	switch hashFunc {
 	case common.Murmur3:
-		cf.hashFunction = common.HashKeyMurmur3[T]
+		cf.hashFunction = common.HashKeyMurmur3
 	case common.Sha256:
-		cf.hashFunction = common.HashKeySha256[T]
+		cf.hashFunction = common.HashKeySha256
 	case common.Sha512:
-		cf.hashFunction = common.HashKeySha512[T]
+		cf.hashFunction = common.HashKeySha512
 	case common.SipHash:
-		cf.hashFunction = common.HashKeySipHash[T]
+		cf.hashFunction = common.HashKeySipHash
 	case common.XXhash:
-		cf.hashFunction = common.HashKeyXXhash[T]
+		cf.hashFunction = common.HashKeyXXhash
 	default:
-		cf.hashFunction = common.HashKeyMurmur3[T]
+		cf.hashFunction = common.HashKeyMurmur3
 	}
 	cf.hashEnum = hashFunc
 	return cf
