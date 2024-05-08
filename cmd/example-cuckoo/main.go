@@ -1,10 +1,13 @@
 package main
 
 import (
-	"fmt"
+	"bufio"
 	"github.com/dryack/GoCeannaithe/pkg/common"
 	"github.com/dryack/GoCeannaithe/pkg/cuckoo"
-	"math/rand"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
+	"os"
+	"strconv"
 )
 
 func main() {
@@ -38,9 +41,57 @@ func main() {
 		fmt.Println(cucko1.Insert(5))
 	}*/
 
-	cucko2 := cuckoo.NewCuckooFilter[int](32768).WithHashFunction(common.Murmur3)
-	for i := 0; i < 5000; i++ {
-		x := rand.Intn(1000)
-		fmt.Println(x, cucko2.Insert(x))
+	cuckoo2 := cuckoo.NewCuckooFilter[int64](2097152).WithHashFunction(common.Murmur3)
+	p := message.NewPrinter(language.English)
+	p.Printf("approximate size of cuckoo filter: %d bytes\n", cuckoo2.ApproximateSize())
+	var numFails uint64
+
+	file, _ := os.Open("./cmd/example-cuckoo/random_numbers.txt")
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		x, _ := strconv.ParseInt(line, 10, 64)
+		res := cuckoo2.Insert(x)
+		if !res {
+			numFails++
+		}
 	}
+	p.Printf("number of failed insertions: %d\n", numFails)
 }
+
+/*
+fp uint64:
+approximate size of cuckoo filter: 100,663,308 bytes
+number of failed insertions: 1,000,295
+
+fp uint32:
+approximate size of cuckoo filter: 67,108,876 bytes
+number of failed insertions: 1,000,295
+
+fp uint16:
+approximate size of cuckoo filter: 50,331,660 bytes
+number of failed insertions: 1,000,295
+
+fp uint8:
+approximate size of cuckoo filter: 41,943,052 bytes
+number of failed insertions: 1,000,295
+
+// after changes
+
+fp uint8:
+approximate size of cuckoo filter: 41,943,052 bytes
+number of failed insertions: 999,987
+
+fp uint16:
+approximate size of cuckoo filter: 50,331,660 bytes
+number of failed insertions: 999,987
+
+fp uint32:
+approximate size of cuckoo filter: 67,108,876 bytes
+number of failed insertions: 999,987
+
+fp uint64:
+approximate size of cuckoo filter: 100,663,308 bytes
+number of failed insertions: 999,987
+
+*/

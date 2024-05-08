@@ -19,6 +19,8 @@ const (
 )
 
 // HashKeyMurmur3 uses NumToBytes to convert a numeric type to bytes and computes the hash value using Murmur3.
+//
+// Note that while HashKeyMurmur3 is exported, it should not be used outside the GoCeannaithe sub-packages.
 func HashKeyMurmur3(key any, seed uint32) (uint64, error) {
 	keyBytes, err := NumToBytes(key) // Directly using NumToBytes
 	if err != nil {
@@ -30,6 +32,8 @@ func HashKeyMurmur3(key any, seed uint32) (uint64, error) {
 }
 
 // HashKeySha256 uses NumToBytes to convert a numeric type to bytes and computes the hash value using SHA-256
+//
+// Note that while HashKeySha256 is exported, it should not be used outside the GoCeannaithe sub-packages.
 func HashKeySha256(key any, seed uint32) (uint64, error) {
 	keyBytes, err := NumToBytes(key)
 	if err != nil {
@@ -51,6 +55,8 @@ func HashKeySha256(key any, seed uint32) (uint64, error) {
 }
 
 // HashKeySha512 uses NumToBytes to convert a numeric type to bytes and computes the hash value using SHA-512
+//
+// Note that while HashKeySha512 is exported, it should not be used outside the GoCeannaithe sub-packages.
 func HashKeySha512(key any, seed uint32) (uint64, error) {
 	keyBytes, err := NumToBytes(key)
 	if err != nil {
@@ -71,6 +77,8 @@ func HashKeySha512(key any, seed uint32) (uint64, error) {
 }
 
 // HashKeySipHash uses NumToBytes to convert a numeric type to bytes and computes the hash value using SipHash
+//
+// Note that while HashKeySipHash is exported, it should not be used outside the GoCeannaithe sub-packages.
 func HashKeySipHash(key any, seed uint32) (uint64, error) {
 	keyBytes, err := NumToBytes(key)
 	if err != nil {
@@ -83,6 +91,8 @@ func HashKeySipHash(key any, seed uint32) (uint64, error) {
 }
 
 // HashKeyXXhash uses NumToBytes to convert a numeric type to bytes and computes the hash value using XX Hash
+//
+// Note that while HashKeyXXhash is exported, it should not be used outside the GoCeannaithe sub-packages.
 func HashKeyXXhash(key any, seed uint32) (uint64, error) {
 	keyBytes, err := NumToBytes(key)
 	if err != nil {

@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	numBuckets = 1024
-	numKeys    = 100000
+	numBuckets = 2097152
+	numKeys    = 1
 )
 
 var (
