@@ -3,20 +3,17 @@ package cuckoo
 import (
 	"github.com/dryack/GoCeannaithe/pkg/common"
 	"math/rand"
-	"reflect"
-	"unsafe"
 )
 
 const (
 	maxKicks = 500
 )
 
-// Fingerprint is a type that determines the size of Bucket.fingerprints
 type Fingerprint uint16
 
 // Bucket represents a bucket in the Cuckoo Filter
 type Bucket struct {
-	fingerprints [4]Fingerprint
+	data uint64
 
 	/*
 		TODO: the raw array of bools currently provides the best performance on
@@ -26,9 +23,16 @@ type Bucket struct {
 			approach they want - and if so, how?
 	*/
 
-	// occupied [4]bool
-	occupied int64
 }
+
+const (
+	fingerprintBits = 13
+	counterBits     = 2
+	fingerprints    = 4
+	occupiedMask    = 0xF000000000000000
+	fingerprintMask = 0x1FFF
+	counterMask     = 0x3
+)
 
 // CuckooFilter represents a Cuckoo Filter
 type CuckooFilter[T common.Hashable] struct {
@@ -44,7 +48,7 @@ type CuckooFilter[T common.Hashable] struct {
 func NewCuckooFilter[T common.Hashable](numBuckets uint32) *CuckooFilter[T] {
 	buckets := make([]*Bucket, numBuckets)
 	for i := range buckets {
-		buckets[i] = &Bucket{fingerprints: [4]Fingerprint{}, occupied: 0}
+		buckets[i] = &Bucket{data: 0}
 	}
 	cf := &CuckooFilter[T]{
 		buckets:    buckets,
@@ -52,7 +56,6 @@ func NewCuckooFilter[T common.Hashable](numBuckets uint32) *CuckooFilter[T] {
 		count:      0,
 		capacity:   numBuckets * 4,
 	}
-	// cf.WithHashFunction(hashFunc) move this to cf.WithAutoConfigure when ready
 	return cf
 }
 
@@ -82,7 +85,8 @@ func (cf *CuckooFilter[T]) Insert(key T) bool {
 	fp := cf.fingerprint(hash)
 	i1, i2 := cf.getIndicesAndFingerprint(hash, fp)
 
-	if cf.insert(i1, fp) || cf.insert(i2, fp) {
+	if cf.buckets[i1].insert(fp) || cf.buckets[i2].insert(fp) {
+		cf.count++
 		return true
 	}
 
@@ -92,7 +96,8 @@ func (cf *CuckooFilter[T]) Insert(key T) bool {
 		fp = f
 		i = cf.getAlternateIndex(fp, i, 0)
 
-		if cf.insert(i, fp) {
+		if cf.buckets[i].insert(fp) {
+			cf.count++
 			return true
 		}
 	}
@@ -123,13 +128,13 @@ func (cf *CuckooFilter[T]) Delete(key T) bool {
 // getIndicesAndFingerprint returns the two bucket indices and fingerprint for a key
 func (cf *CuckooFilter[T]) getIndicesAndFingerprint(hash uint64, fp Fingerprint) (uint32, uint32) {
 	i1 := uint32(hash % uint64(cf.numBuckets))
-	i2 := i1 ^ cf.hashFingerprint(fp)
+	hash2, _ := cf.hashFunction(fp, 5678)
+	i2 := uint32(hash2 % uint64(cf.numBuckets))
 	return i1, i2
 }
 
 // getAlternateIndex returns the alternate bucket index for a fingerprint and index
 func (cf *CuckooFilter[T]) getAlternateIndex(fp Fingerprint, i uint32, seed uint32) uint32 {
-	// hash, _ := cf.hashFunction(fp, seed)
 	hash, _ := cf.hashFunction(fp, seed+5678)
 	return uint32(hash % uint64(cf.numBuckets))
 }
@@ -147,20 +152,24 @@ func (cf *CuckooFilter[T]) insert(i uint32, fp Fingerprint) bool {
 
 // swapFingerprint swaps a fingerprint in a bucket and returns the swapped fingerprint
 func (b *Bucket) swapFingerprint(fp Fingerprint) Fingerprint {
-	i := rand.Intn(len(b.fingerprints))
-	for b.occupied&(1<<i) == 0 {
-		i = (i + 1) % len(b.fingerprints)
+	i := rand.Intn(fingerprints)
+	for b.data&(occupiedMask>>(i*15)) == 0 {
+		i = (i + 1) % fingerprints
 	}
-	oldFp := b.fingerprints[i]
-	b.fingerprints[i] = fp
+	oldFp := Fingerprint((b.data >> (i * 15)) & fingerprintMask)
+	b.data &^= uint64(fingerprintMask << (i * 15))
+	b.data |= uint64(fp) << (i * 15)
 	return oldFp
 }
 
 // contains checks if a bucket contains a key using the fingerprint
 func (b *Bucket) contains(fp Fingerprint) bool {
-	for i := range b.fingerprints {
-		if b.occupied&(1<<i) == 1 && b.fingerprints[i] == fp {
-			return true
+	for i := 0; i < fingerprints; i++ {
+		if b.data&(occupiedMask>>(i*15)) != 0 {
+			storedFp := Fingerprint((b.data >> (i * 15)) & fingerprintMask)
+			if storedFp == fp {
+				return true
+			}
 		}
 	}
 	return false
@@ -168,10 +177,20 @@ func (b *Bucket) contains(fp Fingerprint) bool {
 
 // insert inserts a key into a bucket using the fingerprint
 func (b *Bucket) insert(fp Fingerprint) bool {
-	for i := range b.fingerprints {
-		if b.occupied&(1<<i) == 0 {
-			b.occupied |= 1 << i
-			b.fingerprints[i] = fp
+	for i := 0; i < fingerprints; i++ {
+		if b.data&(occupiedMask>>(i*15)) != 0 {
+			storedFp := Fingerprint((b.data >> (i * 15)) & fingerprintMask)
+			if storedFp == fp {
+				count := (b.data >> ((i * 15) + fingerprintBits)) & counterMask
+				if count < counterMask {
+					b.data += 1 << ((i * 15) + fingerprintBits)
+					return true
+				}
+			}
+		} else {
+			b.data |= occupiedMask >> (i * 15)
+			b.data &^= uint64(fingerprintMask << (i * 15))
+			b.data |= uint64(fp) << (i * 15)
 			return true
 		}
 	}
@@ -180,11 +199,19 @@ func (b *Bucket) insert(fp Fingerprint) bool {
 
 // delete removes a key from a bucket using the fingerprint
 func (b *Bucket) delete(fp Fingerprint) bool {
-	for i := range b.fingerprints {
-		if b.occupied&(1<<i) == 1 && b.fingerprints[i] == fp {
-			b.occupied &^= 1 << i
-			b.fingerprints[i] = 0
-			return true
+	for i := 0; i < fingerprints; i++ {
+		if b.data&(occupiedMask>>(i*15)) != 0 {
+			storedFp := Fingerprint((b.data >> (i * 15)) & fingerprintMask)
+			if storedFp == fp {
+				count := (b.data >> ((i * 15) + fingerprintBits)) & counterMask
+				if count > 0 {
+					b.data -= 1 << ((i * 15) + fingerprintBits)
+				} else {
+					b.data &^= occupiedMask >> (i * 15)
+					b.data &^= uint64(fingerprintMask << (i * 15))
+				}
+				return true
+			}
 		}
 	}
 	return false
@@ -192,8 +219,7 @@ func (b *Bucket) delete(fp Fingerprint) bool {
 
 // fingerprint returns the fingerprint of a hash
 func (cf *CuckooFilter[T]) fingerprint(hash uint64) Fingerprint {
-	// fmt.Println(Fingerprint(hash >> (64 - 8*unsafe.Sizeof(Fingerprint(0))))) // DEBUG
-	return Fingerprint(hash >> (64 - 8*unsafe.Sizeof(Fingerprint(0))))
+	return Fingerprint(hash & fingerprintMask)
 }
 
 func (cf *CuckooFilter[T]) hashFingerprint(fp Fingerprint) uint32 {
@@ -201,31 +227,17 @@ func (cf *CuckooFilter[T]) hashFingerprint(fp Fingerprint) uint32 {
 	return uint32(hash % uint64(cf.numBuckets))
 }
 
+// FIXME:  currently broken
 // ApproximateSize returns the approximate size of the Cuckoo Filter in bytes
 func (cf *CuckooFilter[T]) ApproximateSize() int64 {
 	const (
-		numFingerprints = 4 // Number of fingerprints per bucket
-		occupiedSize    = 8 // occupied field takes 8 bytes (int64)
-		pointerSize     = 8 // pointer size on 64-bit systems
+		numFingerprints = 4  // Number of fingerprints per bucket
+		bucketSize      = 64 // Size of the bucket in bits (4 * (13 + 2) + 4)
+		pointerSize     = 8  // Pointer size in bytes (64-bit systems)
 	)
 
-	// Get the type of the Bucket struct
-	bucketType := reflect.TypeOf(cf.buckets[0]).Elem()
-
-	// Get the type of the fingerprints field in the Bucket struct
-	fingerprintsField, _ := bucketType.FieldByName("fingerprints")
-
-	// Get the type of the fingerprint element
-	fingerprintType := fingerprintsField.Type.Elem()
-
-	// Get the size of the fingerprint type
-	fingerprintSize := fingerprintType.Size()
-
-	bucketSize := numFingerprints * fingerprintSize
-
 	numBuckets := len(cf.buckets)
-	bucketStructSize := bucketSize + occupiedSize
-	totalBucketSize := int64(numBuckets) * (int64(bucketStructSize) + int64(pointerSize))
+	totalBucketSize := int64(numBuckets) * (bucketSize/8 + pointerSize)
 
 	filterMetadataSize := int64(4 * 3) // numBuckets, count, and hashEnum fields
 
