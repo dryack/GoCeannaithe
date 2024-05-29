@@ -150,10 +150,15 @@ func (cf *CuckooFilter[T]) Lookup(key T) bool {
 }
 
 func (cf *CuckooFilter[T]) fingerprint(hash uint64) Fingerprint {
-	mixed := hash ^ (hash >> 33)
-	mixed = (mixed * 0xff51afd7ed558ccd) ^ ((mixed * 0xc4ceb9fe1a85ec53) >> 33)
-	mixed = (mixed ^ (mixed >> 33)) * 0xc4ceb9fe1a85ec53
-	mixed = mixed ^ (mixed >> 33)
+	const (
+		Shift33       = 33
+		MixingFactor1 = 0xff51afd7ed558ccd
+		MixingFactor2 = 0xc4ceb9fe1a85ec53
+	)
+	mixed := hash ^ (hash >> Shift33)
+	mixed = (mixed * MixingFactor1) ^ ((mixed * MixingFactor2) >> Shift33)
+	mixed = (mixed ^ (mixed >> Shift33)) * MixingFactor2
+	mixed = mixed ^ (mixed >> Shift33)
 	return Fingerprint(mixed & uint64(cf.bm.FingerprintMask))
 }
 
