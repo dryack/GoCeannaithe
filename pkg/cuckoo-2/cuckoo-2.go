@@ -67,7 +67,9 @@ func (cf *CuckooFilter[T]) WithHash(hashFunc uint8) (*CuckooFilter[T], error) {
 // reasonable defaults for its parameter numItems, the number of keys the user
 // expects to store in the filter.
 func (cf *CuckooFilter[T]) WithAutoConfigure(numItems uint32) (*CuckooFilter[T], float64, int64, uint32) {
-	return &CuckooFilter[T]{}, 0, 0, 0
+	return &CuckooFilter[T]{
+		capacity: uint64(cf.numBuckets * cf.bm.FingerprintCount),
+	}, 0, 0, 0
 }
 
 // Insert attempts to insert key into the filter.
@@ -95,45 +97,46 @@ func (cf *CuckooFilter[T]) Insert(key T) bool {
 	idx := idx1
 
 	for n := 0; n < int(cf.maxKicks); n++ {
-		if inserted := cf.buckets[idx1].insert(fingerprint, *cf.bm); inserted {
+		/*if inserted := cf.buckets[idx].insert(fingerprint, *cf.bm); inserted {
 			cf.count++
 			return true
 		}
 
-		if inserted := cf.buckets[idx2].insert(fingerprint, *cf.bm); inserted {
+		// first index full, switch to second index
+		idx := idx2
+
+		if inserted := cf.buckets[idx].insert(fingerprint, *cf.bm); inserted {
+			cf.count++
+			return true
+		}*/
+
+		// swap the fingerprint with a randomly selected entry from the bucket
+		if !cf.buckets[idx].insert(fingerprint, *cf.bm) {
+			// Randomly select an entry from the bucket
+			entryIndex := rand.Intn(int(cf.bm.FingerprintCount))
+			entryFP := cf.bm.GetFingerprint(cf.buckets[idx].data, entryIndex)
+
+			// Swap the fingerprints
+			cf.bm.SetFingerprint(&cf.buckets[idx].data, entryIndex, uint64(fingerprint))
+			fingerprint = Fingerprint(entryFP)
+
+			// calculate the alternate bucket index using XOR
+			hash, err := cf.hashFunction(uint16(fingerprint), 0)
+			if err != nil {
+				msg := fmt.Sprintf("Error hashing %v: %v, this is probably a bug", fingerprint, err)
+				panic(msg)
+			}
+			idx = (idx ^ uint32(hash)) % cf.numBuckets
+
+			if cf.buckets[idx].insert(fingerprint, *cf.bm) {
+				cf.count++
+				return true
+			}
+		} else {
 			cf.count++
 			return true
 		}
-
 	}
-
-	// swap the fingerprint with a randomly selected entry from the bucket
-	if !cf.buckets[idx].insert(fingerprint, *cf.bm) {
-		// Randomly select an entry from the bucket
-		entryIndex := rand.Intn(int(cf.bm.FingerprintCount))
-		entryFP := cf.bm.GetFingerprint(cf.buckets[idx].data, entryIndex)
-
-		// Swap the fingerprints
-		cf.bm.SetFingerprint(&cf.buckets[idx].data, entryIndex, uint64(fingerprint))
-		fingerprint = Fingerprint(entryFP)
-
-		// calculate the alternate bucket index using XOR
-		hash, err := cf.hashFunction(uint16(fingerprint), 0)
-		if err != nil {
-			msg := fmt.Sprintf("Error hashing %v: %v, this is probably a bug", fingerprint, err)
-			panic(msg)
-		}
-		idx = (idx ^ uint32(hash)) % cf.numBuckets
-
-		if cf.buckets[idx].insert(fingerprint, *cf.bm) {
-			cf.count++
-			return true
-		}
-	} else {
-		cf.count++
-		return true
-	}
-
 	return false
 }
 
@@ -192,4 +195,8 @@ func (b *Bucket) insert(fp Fingerprint, bm BitManipulator) bool {
 		}
 	}
 	return false
+}
+
+func (cf *CuckooFilter[T]) getLoadFactor() float64 {
+	return float64(cf.count) / float64(cf.capacity)
 }
